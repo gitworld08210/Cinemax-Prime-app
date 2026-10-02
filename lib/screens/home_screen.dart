@@ -45,7 +45,8 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  List<Movie> get allMovies => widget.movies;
+  // Exclude 18+ content from home screen
+  List<Movie> get allMovies => widget.movies.where((m) => !m.isAdult).toList();
 
   // Filters matching exact website categories
   List<Movie> _filterByCategory(String cat) {
@@ -90,14 +91,78 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(movie: movie)));
   }
 
-  void _launchDownload(Movie movie) async {
-    final Uri url = Uri.parse(movie.downloadUrl.isNotEmpty ? movie.downloadUrl : movie.videoUrl);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch download.')),
-        );
-      }
+  void _launchDownload(Movie movie) {
+    if (movie.audioTracks.length > 1) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFF141414),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: kAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.download, color: kAccent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Select Download Audio", style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                            Text("${movie.title} • ${movie.quality}", style: const TextStyle(color: kInkMuted, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ...movie.audioTracks.map((track) {
+                    final isHindi = track.label.toLowerCase().contains('hindi') || track.lang == 'hi';
+                    final downloadLink = track.videoUrl.isNotEmpty
+                        ? (track.videoUrl.contains('/stream/')
+                            ? track.videoUrl.replaceAll('/stream/', '/download/') + '?download=1'
+                            : track.videoUrl)
+                        : movie.downloadUrl;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: kSurface2,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isHindi ? kAccent.withOpacity(0.4) : Colors.white10),
+                      ),
+                      child: ListTile(
+                        leading: Icon(isHindi ? Icons.translate : Icons.audiotrack, color: isHindi ? kAccent : Colors.white70),
+                        title: Text(track.label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: Text("${movie.quality} • Fast Direct Download", style: const TextStyle(color: kInkMuted, fontSize: 12)),
+                        trailing: const Icon(Icons.arrow_downward, color: kAccent, size: 20),
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          final uri = Uri.parse(downloadLink);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      final uri = Uri.parse(movie.downloadUrl.isNotEmpty ? movie.downloadUrl : movie.videoUrl);
+      launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 

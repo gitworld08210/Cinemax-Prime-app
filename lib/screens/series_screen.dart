@@ -24,7 +24,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   List<Movie> get seriesList {
     final allSeries = widget.movies.where((m) =>
-      m.type == 'series' || m.genre.any((g) => g.toLowerCase().contains('web series') || g.toLowerCase().contains('series'))
+      !m.isAdult && (m.type == 'series' || m.genre.any((g) => g.toLowerCase().contains('web series') || g.toLowerCase().contains('series')))
     ).toList();
 
     switch (selectedFilter) {

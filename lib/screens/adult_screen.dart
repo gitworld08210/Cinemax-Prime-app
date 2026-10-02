@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
@@ -26,6 +27,11 @@ class _AdultScreenState extends State<AdultScreen> {
   String? _correctPin;
   bool _isVerifying = false;
   String? _pinError;
+
+  // 45-Second Auto-Lock Security
+  Timer? _autoLockTimer;
+  Timer? _countdownTimer;
+  int _remainingSeconds = 45;
 
   @override
   void initState() {
@@ -105,6 +111,47 @@ class _AdultScreenState extends State<AdultScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _autoLockTimer?.cancel();
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoLockTimer() {
+    _autoLockTimer?.cancel();
+    _countdownTimer?.cancel();
+    _remainingSeconds = 45;
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (mounted && _isUnlocked) {
+        if (_remainingSeconds > 1) {
+          setState(() => _remainingSeconds--);
+        } else {
+          t.cancel();
+        }
+      } else {
+        t.cancel();
+      }
+    });
+
+    _autoLockTimer = Timer(const Duration(seconds: 45), () {
+      if (mounted && _isUnlocked) {
+        _lockVault(notice: "Vault auto-locked after 45s of inactivity.");
+      }
+    });
+  }
+
+  void _lockVault({String? notice}) {
+    _autoLockTimer?.cancel();
+    _countdownTimer?.cancel();
+    setState(() {
+      _isUnlocked = false;
+      _enteredPin = '';
+      _pinError = notice;
+    });
+  }
+
   Future<void> _verifyPin() async {
     setState(() => _isVerifying = true);
     final target = _correctPin ?? await ApiService.fetchAdultPin();
@@ -114,12 +161,14 @@ class _AdultScreenState extends State<AdultScreen> {
         setState(() {
           _isUnlocked = true;
           _isVerifying = false;
+          _pinError = null;
         });
+        _startAutoLockTimer();
       }
     } else {
       if (mounted) {
         setState(() {
-          _pinError = "Incorrect Passcode! Set via Telegram Bot.";
+          _pinError = "Incorrect Passcode! Please try again.";
           _enteredPin = '';
           _isVerifying = false;
         });
@@ -142,7 +191,7 @@ class _AdultScreenState extends State<AdultScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text("Adult 18+ Vault", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text("VIP Restricted Vault", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SafeArea(
         child: Column(
@@ -161,17 +210,17 @@ class _AdultScreenState extends State<AdultScreen> {
             const SizedBox(height: 20),
 
             const Text(
-              "🔞 18+ Hollywood Vault",
+              "🔞 VIP 18+ Vault",
               style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             const Text(
-              "Enter Security PIN to unlock mature titles",
+              "Enter 4-Digit Security Passcode",
               style: TextStyle(color: kInkMuted, fontSize: 13),
             ),
             const SizedBox(height: 4),
             const Text(
-              "💡 Passcode can be set via Telegram Bot (/setpin <pin>)",
+              "Private restricted collection • Auto-locks every 45s",
               style: TextStyle(color: Colors.white38, fontSize: 11),
             ),
             const SizedBox(height: 24),
@@ -289,15 +338,29 @@ class _AdultScreenState extends State<AdultScreen> {
           ],
         ),
         actions: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer_outlined, size: 14, color: kAccent),
+                const SizedBox(width: 4),
+                Text(
+                  "${_remainingSeconds}s",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.lock, color: Colors.white70),
             tooltip: "Lock Vault",
-            onPressed: () {
-              setState(() {
-                _isUnlocked = false;
-                _enteredPin = '';
-              });
-            },
+            onPressed: () => _lockVault(),
           ),
         ],
       ),

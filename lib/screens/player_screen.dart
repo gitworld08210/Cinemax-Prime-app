@@ -41,6 +41,11 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
   bool _isScrubbing = false;
   double _scrubValue = 0.0;
 
+  // Netflix-Grade Fast Seek Debouncing (Zero-Lag Seeking)
+  int _accumulatedSeekSeconds = 0;
+  Timer? _debounceSeekTimer;
+  Duration _seekBasePosition = Duration.zero;
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +72,8 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
   void dispose() {
     _hideTimer?.cancel();
     _rippleTimer?.cancel();
+    _debounceSeekTimer?.cancel();
+    _controller?.removeListener(_onControllerUpdate);
     _controller?.dispose();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -89,9 +96,11 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
       final uri = Uri.parse(url.trim());
       _controller = VideoPlayerController.networkUrl(
         uri,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
         httpHeaders: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 CinemaxPlayer/2.0',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Mobile) CinemaxPlayer/2.0',
           'Accept': '*/*',
+          'Connection': 'keep-alive',
         },
       );
 
@@ -150,22 +159,33 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
     }
   }
 
-  // ── Rock-Solid Seek Handling (Never Resets to 0) ──
+  // ── Rock-Solid Debounced Seek (Smooth 0-Lag Fast Forward) ──
   void _seekBy(int seconds) {
     if (_controller == null || !_controller!.value.isInitialized) return;
     final duration = _controller!.value.duration;
     if (duration <= Duration.zero) return;
 
-    final current = _controller!.value.position;
-    int targetMs = current.inMilliseconds + (seconds * 1000);
-    if (targetMs < 0) targetMs = 0;
-    if (targetMs > duration.inMilliseconds) targetMs = duration.inMilliseconds;
+    if (_debounceSeekTimer?.isActive == true) {
+      _accumulatedSeekSeconds += seconds;
+    } else {
+      _seekBasePosition = _controller!.value.position;
+      _accumulatedSeekSeconds = seconds;
+    }
 
-    _controller!.seekTo(Duration(milliseconds: targetMs));
+    final targetMs = (_seekBasePosition.inMilliseconds + (_accumulatedSeekSeconds * 1000)).clamp(0, duration.inMilliseconds);
 
-    // Show visual ripple
-    _showRipple(seconds > 0 ? "+${seconds}s" : "${seconds}s", seconds > 0);
+    // Show visual ripple with accumulated delta (+10s, +20s, +30s...)
+    _showRipple("${_accumulatedSeekSeconds > 0 ? '+' : ''}${_accumulatedSeekSeconds}s", _accumulatedSeekSeconds > 0);
     _startHideTimer();
+
+    // Debounce the actual heavy seekTo() call by 350ms so rapid taps don't freeze the stream
+    _debounceSeekTimer?.cancel();
+    _debounceSeekTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted && _controller != null && _controller!.value.isInitialized) {
+        _controller!.seekTo(Duration(milliseconds: targetMs));
+        _accumulatedSeekSeconds = 0;
+      }
+    });
   }
 
   void _showRipple(String text, bool isForward) {
@@ -325,12 +345,53 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
     );
   }
 
-  void _triggerDownload() async {
-    final dlUrl = widget.movie.downloadUrl.isNotEmpty ? widget.movie.downloadUrl : widget.movie.videoUrl;
-    if (dlUrl.isNotEmpty) {
-      final uri = Uri.parse(dlUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+  void _triggerDownload() {
+    if (widget.movie.audioTracks.length > 1) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFF141414),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Select Download Audio Track", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  ...widget.movie.audioTracks.map((track) {
+                    final downloadLink = track.videoUrl.isNotEmpty
+                        ? (track.videoUrl.contains('/stream/')
+                            ? track.videoUrl.replaceAll('/stream/', '/download/') + '?download=1'
+                            : track.videoUrl)
+                        : widget.movie.downloadUrl;
+                    return ListTile(
+                      leading: const Icon(Icons.audiotrack, color: kAccent),
+                      title: Text(track.label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text(track.lang.toUpperCase(), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                      trailing: const Icon(Icons.download, color: Colors.white70),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final uri = Uri.parse(downloadLink);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      final dlUrl = widget.movie.downloadUrl.isNotEmpty ? widget.movie.downloadUrl : widget.movie.videoUrl;
+      if (dlUrl.isNotEmpty) {
+        final uri = Uri.parse(dlUrl);
+        launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     }
   }
@@ -450,16 +511,31 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
               ),
             ),
 
-          // ── Loading state ──
-          if (_isLoading)
-            const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: kAccent),
-                  SizedBox(height: 16),
-                  Text("Buffering Cinemax Stream...", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
+          // ── Loading or Buffering state ──
+          if (_isLoading || (hasVideo && _controller!.value.isBuffering))
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.72),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(color: kAccent, strokeWidth: 2.5),
+                    ),
+                    const SizedBox(width: 14),
+                    Text(
+                      _isLoading ? "Connecting to Cinemax Stream..." : "Buffering stream...",
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ),
 

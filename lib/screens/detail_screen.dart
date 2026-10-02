@@ -2,29 +2,237 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/movie.dart';
+import '../services/api_service.dart';
 import 'player_screen.dart';
 
 const Color kAccent = Color(0xFFE11D48);
 const Color kSurface2 = Color(0xFF181818);
+const Color kSurface3 = Color(0xFF1F1F1F);
 const Color kRating = Color(0xFFF5C518);
 const Color kInkMuted = Color(0xFF8A8F98);
 
-class DetailScreen extends StatelessWidget {
+class DetailScreen extends StatefulWidget {
   final Movie movie;
 
   const DetailScreen({Key? key, required this.movie}) : super(key: key);
 
-  void _launchDownload(BuildContext context) async {
-    final Uri url = Uri.parse(movie.downloadUrl.isNotEmpty ? movie.downloadUrl : movie.videoUrl);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch download.')),
-      );
+  @override
+  State<DetailScreen> createState() => _DetailScreenState();
+}
+
+class _DetailScreenState extends State<DetailScreen> {
+  List<Map<String, dynamic>> _episodes = [];
+  bool _loadingEpisodes = false;
+
+  bool get isSeries =>
+      widget.movie.type == 'series' ||
+      widget.movie.genre.any((g) => g.toLowerCase().contains('series')) ||
+      widget.movie.title.toLowerCase().contains('season') ||
+      widget.movie.title.toLowerCase().contains('s0');
+
+  @override
+  void initState() {
+    super.initState();
+    if (isSeries) {
+      _loadEpisodes();
     }
+  }
+
+  Future<void> _loadEpisodes() async {
+    setState(() => _loadingEpisodes = true);
+    final eps = await ApiService.fetchTvEpisodes(widget.movie.title);
+    if (mounted) {
+      setState(() {
+        _episodes = eps;
+        _loadingEpisodes = false;
+      });
+    }
+  }
+
+  void _triggerDownload(String url) async {
+    final cleanUrl = url.isNotEmpty ? url : widget.movie.downloadUrl;
+    if (cleanUrl.isEmpty) return;
+
+    final Uri uri = Uri.parse(cleanUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Starting high-speed download...'),
+            backgroundColor: Color(0xFF1A1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch download.')),
+        );
+      }
+    }
+  }
+
+  // ── Language & Server Download Picker (Hollywood Dual Audio) ──
+  void _showDownloadOptions() {
+    final movie = widget.movie;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.download, color: kAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Select Download Language",
+                            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            "${movie.title} • ${movie.quality}",
+                            style: const TextStyle(color: kInkMuted, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: Colors.white12, height: 1),
+                const SizedBox(height: 12),
+
+                // Multi-Audio Track options (Hindi, English, etc.)
+                if (movie.audioTracks.isNotEmpty) ...[
+                  ...movie.audioTracks.map((track) {
+                    final isHindi = track.label.toLowerCase().contains('hindi') || track.lang == 'hi';
+                    final downloadLink = track.videoUrl.isNotEmpty
+                        ? (track.videoUrl.contains('/stream/')
+                            ? track.videoUrl.replaceAll('/stream/', '/download/') + '?download=1'
+                            : track.videoUrl)
+                        : movie.downloadUrl;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: kSurface2,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isHindi ? kAccent.withOpacity(0.4) : Colors.white10),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isHindi ? kAccent.withOpacity(0.2) : Colors.white10,
+                          child: Icon(
+                            isHindi ? Icons.translate : Icons.audiotrack,
+                            color: isHindi ? kAccent : Colors.white70,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          track.label,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          "${movie.quality} • Fast Direct Download",
+                          style: const TextStyle(color: kInkMuted, fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.arrow_downward, color: kAccent, size: 20),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _triggerDownload(downloadLink);
+                        },
+                      ),
+                    );
+                  }),
+                ] else ...[
+                  // Default Server 1 & Server 2 options
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: kSurface2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.white10,
+                        child: Icon(Icons.speed, color: kAccent, size: 20),
+                      ),
+                      title: const Text("Server 1 - High Speed Direct", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text("${movie.quality} • Full Speed Cloud CDN", style: const TextStyle(color: kInkMuted, fontSize: 12)),
+                      trailing: const Icon(Icons.arrow_downward, color: kAccent, size: 20),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _triggerDownload(movie.downloadUrl);
+                      },
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: kSurface2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.white10,
+                        child: Icon(Icons.cloud_download, color: Colors.white70, size: 20),
+                      ),
+                      title: const Text("Server 2 - Fast CDN Download", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text("${movie.quality} • Direct Media File", style: const TextStyle(color: kInkMuted, fontSize: 12)),
+                      trailing: const Icon(Icons.arrow_downward, color: Colors.white70, size: 20),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _triggerDownload(movie.videoUrl);
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _playEpisode(Map<String, dynamic> ep) {
+    // Play selected episode
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PremiumPlayerScreen(movie: widget.movie),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final movie = widget.movie;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: CustomScrollView(
@@ -128,7 +336,7 @@ class DetailScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       icon: const Icon(Icons.play_arrow, size: 28),
-                      label: const Text('Play Movie', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                      label: Text(isSeries ? 'Play Season 1' : 'Play Movie', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                       onPressed: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPlayerScreen(movie: movie)));
                       },
@@ -147,8 +355,11 @@ class DetailScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       icon: const Icon(Icons.download, size: 22),
-                      label: const Text('Download', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      onPressed: () => _launchDownload(context),
+                      label: Text(
+                        movie.audioTracks.length > 1 ? 'Download (Select Audio)' : 'Download',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: _showDownloadOptions,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -178,6 +389,144 @@ class DetailScreen extends StatelessWidget {
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 24),
+
+                  // ── Web Series Episodes Section ──
+                  if (isSeries) ...[
+                    const Divider(color: Colors.white12, height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Episodes",
+                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: kSurface3,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: const Text("Season 1", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (_loadingEpisodes)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 30),
+                          child: CircularProgressIndicator(color: kAccent),
+                        ),
+                      )
+                    else if (_episodes.isNotEmpty)
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _episodes.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (ctx, i) {
+                          final ep = _episodes[i];
+                          final still = ep['still'] as String? ?? '';
+                          final title = ep['name'] as String? ?? 'Episode ${i + 1}';
+                          final num = ep['episode_number'] ?? (i + 1);
+                          final overview = ep['overview'] as String? ?? '';
+                          final runtime = ep['runtime'] as String? ?? '45m';
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: kSurface2,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => _playEpisode(ep),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Thumbnail
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            still.isNotEmpty
+                                                ? CachedNetworkImage(
+                                                    imageUrl: still,
+                                                    width: 100,
+                                                    height: 65,
+                                                    fit: BoxFit.cover,
+                                                    placeholder: (_, __) => Container(color: kSurface3, width: 100, height: 65),
+                                                    errorWidget: (_, __, ___) => Container(color: kSurface3, width: 100, height: 65, child: const Icon(Icons.tv, color: Colors.white24)),
+                                                  )
+                                                : Container(
+                                                    color: kSurface3,
+                                                    width: 100,
+                                                    height: 65,
+                                                    child: const Icon(Icons.tv, color: Colors.white24),
+                                                  ),
+                                            Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.6),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // Episode Info
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    "$num. $title",
+                                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  runtime,
+                                                  style: const TextStyle(color: kInkMuted, fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              overview.isNotEmpty ? overview : "Watch full episode in HD on Cinemax Prime.",
+                                              style: const TextStyle(color: Color(0x99FFFFFF), fontSize: 12, height: 1.3),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+
                   const SizedBox(height: 40),
                 ],
               ),

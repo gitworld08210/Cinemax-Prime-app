@@ -209,4 +209,47 @@ class ApiService {
 
     return '1818'; // Default fallback PIN
   }
+
+  /// Fetch real TV series seasons and episodes from TMDB
+  static Future<List<Map<String, dynamic>>> fetchTvEpisodes(String title, {int season = 1}) async {
+    final clean = title.replaceAll(RegExp(r'\s*\(?\d{4}\)?.*'), '').replaceAll(RegExp(r'(?i)season\s*\d+'), '').trim();
+    try {
+      final searchUrl = 'https://api.themoviedb.org/3/search/tv?api_key=$tmdbApiKey&query=${Uri.encodeComponent(clean)}';
+      final sRes = await http.get(Uri.parse(searchUrl)).timeout(const Duration(seconds: 5));
+      if (sRes.statusCode == 200) {
+        final sData = json.decode(utf8.decode(sRes.bodyBytes));
+        final results = sData['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          final tvId = results[0]['id'];
+          final epUrl = 'https://api.themoviedb.org/3/tv/$tvId/season/$season?api_key=$tmdbApiKey';
+          final epRes = await http.get(Uri.parse(epUrl)).timeout(const Duration(seconds: 5));
+          if (epRes.statusCode == 200) {
+            final epData = json.decode(utf8.decode(epRes.bodyBytes));
+            final eps = epData['episodes'] as List?;
+            if (eps != null && eps.isNotEmpty) {
+              return eps.map<Map<String, dynamic>>((e) {
+                final stillPath = e['still_path'];
+                return {
+                  'episode_number': e['episode_number'] ?? 1,
+                  'name': e['name'] ?? 'Episode ${e['episode_number']}',
+                  'overview': e['overview'] ?? '',
+                  'still': stillPath != null ? 'https://image.tmdb.org/t/p/w500$stillPath' : '',
+                  'runtime': e['runtime'] != null ? '${e['runtime']}m' : '45m',
+                };
+              }).toList();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: Return 8 standard episodes
+    return List.generate(8, (i) => {
+      'episode_number': i + 1,
+      'name': 'Episode ${i + 1}',
+      'overview': 'Watch Episode ${i + 1} in Full HD on Cinemax Prime.',
+      'still': '',
+      'runtime': '45m',
+    });
+  }
 }

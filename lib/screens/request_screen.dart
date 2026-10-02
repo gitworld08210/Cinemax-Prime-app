@@ -156,17 +156,17 @@ class _RequestScreenState extends State<RequestScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  "Search below and request it! Our Industrial Harvester bot downloads files up to 10GB and adds them to Cinemax Prime.",
+                  "Search below and request any title! Our cloud delivery network automatically indexes and adds requested titles to Cinemax Prime in 4K/HD.",
                   style: TextStyle(fontSize: 12, color: kInkMuted, height: 1.4),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _buildStepChip("1", "Search TMDB"),
+                    _buildStepChip("1", "Search Title"),
                     const Icon(Icons.arrow_forward_ios, size: 10, color: Colors.white24),
                     _buildStepChip("2", "Request Title"),
                     const Icon(Icons.arrow_forward_ios, size: 10, color: Colors.white24),
-                    _buildStepChip("3", "Bot Ingests"),
+                    _buildStepChip("3", "Cloud Ingest"),
                   ],
                 ),
               ],

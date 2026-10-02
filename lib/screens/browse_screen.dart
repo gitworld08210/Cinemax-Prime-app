@@ -52,7 +52,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   ];
 
   List<Movie> get filteredMovies {
-    List<Movie> list = widget.movies;
+    // Strictly exclude 18+ adult content from public browse
+    List<Movie> list = widget.movies.where((m) => !m.isAdult).toList();
 
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();

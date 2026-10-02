@@ -95,4 +95,22 @@ class Movie {
       badge: json['badge']?.toString() ?? '',
     );
   }
+
+  bool get isAdult {
+    final t = title.toLowerCase();
+    final g = genre.map((x) => x.toLowerCase()).toList();
+    final q = quality.toLowerCase();
+    final s = synopsis.toLowerCase();
+    return g.any((x) => x.contains('18+') || x.contains('erotic') || x.contains('adult') || x.contains('mature')) ||
+           q.contains('18+') ||
+           t.contains('50 shades') ||
+           t.contains('fifty shades') ||
+           t.contains('365 days') ||
+           t.contains('darker') ||
+           t.contains('freed') ||
+           t.contains('celebrity sex') ||
+           t.contains('unrated') ||
+           s.contains('18+') ||
+           s.contains('erotic');
+  }
 }
