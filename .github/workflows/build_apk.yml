@@ -29,11 +29,13 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Recreate Standard Android Scaffolding
+      - name: Generate Official Android Project Scaffolding
         run: |
           flutter create . --platforms=android --org com.cinemax --project-name cinemax_prime
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 21/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
+          # Add Internet permission to AndroidManifest.xml
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>' android/app/src/main/AndroidManifest.xml
 
       - name: Install Dependencies
         run: flutter pub get
