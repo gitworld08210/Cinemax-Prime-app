@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/movie.dart';
 import '../services/api_service.dart';
 import 'detail_screen.dart';
 import 'main_navigation_screen.dart';
+import 'browse_screen.dart';
+import 'request_screen.dart';
+import 'player_screen.dart';
 
 const Color kAccent = Color(0xFFE11D48);
 const Color kCanvas = Colors.black;
@@ -86,6 +90,17 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(movie: movie)));
   }
 
+  void _launchDownload(Movie movie) async {
+    final Uri url = Uri.parse(movie.downloadUrl.isNotEmpty ? movie.downloadUrl : movie.videoUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch download.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,15 +173,15 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                     ),
                   ] else ...[
                     // ── Recently Added (NEW) ──
-                    if (recentlyAdded.isNotEmpty) _buildRow('Recently added', recentlyAdded, badge: 'NEW'),
+                    if (recentlyAdded.isNotEmpty) _buildRow('Recently added', recentlyAdded, badge: 'NEW', filterKey: 'all', seeAllLabel: 'See all ›'),
                     // ── Trending Now ──
-                    if (trendingNow.isNotEmpty) _buildRow('Trending Now', trendingNow),
+                    if (trendingNow.isNotEmpty) _buildRow('Trending Now', trendingNow, filterKey: 'top10', seeAllLabel: 'Explore All ›'),
                     // ── Bollywood & Indian Cinema ──
-                    if (bollywoodMovies.isNotEmpty) _buildRow('Bollywood & Indian Cinema', bollywoodMovies),
+                    if (bollywoodMovies.isNotEmpty) _buildRow('Bollywood & Indian Cinema', bollywoodMovies, filterKey: 'bollywood', seeAllLabel: 'See More ›'),
                     // ── Hollywood & Global Cinema ──
-                    if (hollywoodMovies.isNotEmpty) _buildRow('Hollywood & Global Cinema', hollywoodMovies),
+                    if (hollywoodMovies.isNotEmpty) _buildRow('Hollywood & Global Cinema', hollywoodMovies, filterKey: 'hollywood', seeAllLabel: 'Browse ›'),
                     // ── Web Series ──
-                    if (webSeries.isNotEmpty) _buildRow('Web Series', webSeries),
+                    if (webSeries.isNotEmpty) _buildRow('Web Series', webSeries, filterKey: 'series', seeAllLabel: 'See all ›'),
                   ],
 
                   const SliverToBoxAdapter(child: SizedBox(height: 50)),
@@ -274,7 +289,12 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                         ),
                         icon: const Icon(Icons.play_arrow, size: 22),
                         label: const Text('Play Movie', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        onPressed: () => _openDetail(movie),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => PremiumPlayerScreen(movie: movie)),
+                          );
+                        },
                       ),
                       const SizedBox(width: 10),
                       // Download
@@ -287,7 +307,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                         ),
                         icon: const Icon(Icons.download, size: 18),
                         label: const Text('Download', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        onPressed: () => _openDetail(movie),
+                        onPressed: () => _launchDownload(movie),
                       ),
                       const SizedBox(width: 10),
                       // Browse All
@@ -300,7 +320,14 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                         ),
                         icon: const Icon(Icons.info_outline, size: 18),
                         label: const Text('Browse All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BrowseScreen(movies: widget.movies),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -326,6 +353,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
       {'key': 'south', 'label': 'South Hindi Dubbed'},
       {'key': 'top10', 'label': 'Top 10 Today'},
       {'key': 'action', 'label': 'Action & Thriller'},
+      {'key': 'request', 'label': '⚡ Request Title'},
     ];
 
     return Container(
@@ -341,6 +369,13 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
           final isActive = activeFilter == cat['key'];
           return GestureDetector(
             onTap: () {
+              if (cat['key'] == 'request') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => RequestScreen(existingMovies: widget.movies)),
+                );
+                return;
+              }
               setState(() {
                 activeFilter = cat['key']!;
                 searchQuery = '';
@@ -372,7 +407,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   // ═══════════════════════════════════════════════════════════════
   //  Carousel Row (matches website stream-section layout)
   // ═══════════════════════════════════════════════════════════════
-  SliverToBoxAdapter _buildRow(String title, List<Movie> movies, {String? badge}) {
+  SliverToBoxAdapter _buildRow(String title, List<Movie> movies, {String? badge, String filterKey = 'all', String seeAllLabel = 'See all ›'}) {
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +432,27 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                   ),
                 ],
                 const Spacer(),
-                Text('See all ›', style: TextStyle(color: kAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BrowseScreen(
+                          movies: widget.movies,
+                          initialFilter: filterKey,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    child: Text(
+                      seeAllLabel,
+                      style: const TextStyle(color: kAccent, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

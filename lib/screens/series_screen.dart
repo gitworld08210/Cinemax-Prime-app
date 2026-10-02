@@ -123,7 +123,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                   height: 140,
                                   fit: BoxFit.cover,
                                   placeholder: (_, __) => Container(color: kSurface3),
-                                  errorWidget: (_, __) => Container(
+                                  errorWidget: (_, __, ___) => Container(
                                     color: kSurface3,
                                     child: const Icon(Icons.tv, color: Colors.white24),
                                   ),

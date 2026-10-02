@@ -367,7 +367,7 @@ class _AdultScreenState extends State<AdultScreen> {
                                 imageUrl: movie.poster,
                                 fit: BoxFit.cover,
                                 placeholder: (_, __) => Container(color: kSurface2),
-                                errorWidget: (_, __) => Container(
+                                errorWidget: (_, __, ___) => Container(
                                   color: kSurface2,
                                   child: const Icon(Icons.movie, color: Colors.white24),
                                 ),

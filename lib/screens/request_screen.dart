@@ -14,7 +14,7 @@ const Color kInkMuted = Color(0xFF8A8F98);
 class RequestScreen extends StatefulWidget {
   final List<Movie> existingMovies;
 
-  const RequestScreen({Key? key, required this.existingMovies}) : super(key: key);
+  const RequestScreen({Key? key, this.existingMovies = const []}) : super(key: key);
 
   @override
   State<RequestScreen> createState() => _RequestScreenState();
@@ -255,7 +255,7 @@ class _RequestScreenState extends State<RequestScreen> {
                                     height: 80,
                                     fit: BoxFit.cover,
                                     placeholder: (_, __) => Container(color: kSurface3),
-                                    errorWidget: (_, __) => Container(
+                                    errorWidget: (_, __, ___) => Container(
                                       color: kSurface3,
                                       child: const Icon(Icons.movie, color: Colors.white24),
                                     ),

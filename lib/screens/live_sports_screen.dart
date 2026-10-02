@@ -136,7 +136,7 @@ class LiveSportsScreen extends StatelessWidget {
                           width: double.infinity,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => Container(color: kSurface3, height: 160),
-                          errorWidget: (_, __) => Container(color: kSurface3, height: 160),
+                          errorWidget: (_, __, ___) => Container(color: kSurface3, height: 160),
                         ),
                       ),
                       // Dark gradient overlay

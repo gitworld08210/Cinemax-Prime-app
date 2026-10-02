@@ -13,20 +13,34 @@ const Color kRating = Color(0xFFF5C518);
 
 class BrowseScreen extends StatefulWidget {
   final List<Movie> movies;
+  final String initialFilter;
 
-  const BrowseScreen({Key? key, required this.movies}) : super(key: key);
+  const BrowseScreen({
+    Key? key,
+    required this.movies,
+    this.initialFilter = 'all',
+  }) : super(key: key);
 
   @override
   State<BrowseScreen> createState() => _BrowseScreenState();
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
-  String selectedFilter = 'all';
+  late String selectedFilter;
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    selectedFilter = widget.initialFilter;
+  }
+
   final List<Map<String, String>> filters = [
     {'id': 'all', 'label': 'All Titles'},
+    {'id': 'movies', 'label': 'Movies'},
+    {'id': 'series', 'label': 'Web Series'},
+    {'id': 'top10', 'label': 'Top 10 Today'},
     {'id': 'bollywood', 'label': 'Bollywood'},
     {'id': 'hollywood', 'label': 'Hollywood (Dual Audio)'},
     {'id': 'south', 'label': 'South Hindi'},
@@ -46,6 +60,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
 
     switch (selectedFilter) {
+      case 'movies':
+        return list.where((m) => m.type == 'movie').toList();
+      case 'series':
+        return list.where((m) => m.type == 'series' || m.genre.any((g) => g.toLowerCase().contains('web series') || g.toLowerCase().contains('series'))).toList();
+      case 'top10':
+        return list.where((m) => m.isTrending).take(10).toList();
       case 'bollywood':
         return list.where((m) => m.genre.any((g) => g.toLowerCase().contains('bollywood'))).toList();
       case 'hollywood':
@@ -204,7 +224,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                       imageUrl: movie.poster,
                                       fit: BoxFit.cover,
                                       placeholder: (_, __) => Container(color: kSurface2),
-                                      errorWidget: (_, __) => Container(
+                                      errorWidget: (_, __, ___) => Container(
                                         color: kSurface2,
                                         child: const Icon(Icons.movie, color: Colors.white24),
                                       ),
