@@ -13,10 +13,10 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -29,6 +29,12 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Recreate Standard Android Scaffolding
+        run: |
+          flutter create . --platforms=android --org com.cinemax --project-name cinemax_prime
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 21/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
+
       - name: Install Dependencies
         run: flutter pub get
 
@@ -38,7 +44,7 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cinemax-prime-release
+          name: cinemax-prime-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Create GitHub Release
@@ -48,9 +54,9 @@ jobs:
           name: "Cinemax Prime v1.0.${{ github.run_number }}"
           body: |
             🎬 **Cinemax Prime APK - Auto Build**
-            - Premium Video Player with MKV Dual Audio switching
-            - Netflix-style UI
-            - Direct streaming from Render cloud
+            - Native Dual-Audio Player (Hindi/English MKV Track Switching)
+            - Exact Cinemax Prime Website Dark UI
+            - Ultra Fast Cloud Streaming
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
