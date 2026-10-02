@@ -30,7 +30,7 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
   PlayerFitMode _fitMode = PlayerFitMode.contain;
   double _playbackSpeed = 1.0;
   String currentAudioLabel = "Default Audio";
-  int _activeServer = 1;
+  int _activeServer = 3; // Default to Elite Server 3 (Azure Turbo Test Mode)
 
   // Double tap ripple animation
   String? _rippleText;
@@ -121,7 +121,12 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
         },
       );
 
-      await _controller!.initialize();
+      await _controller!.initialize().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          throw Exception("Connection timed out");
+        },
+      );
 
       if (startPosition != null && startPosition > Duration.zero) {
         await _controller!.seekTo(startPosition);
@@ -140,10 +145,18 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
         _startHideTimer();
       }
     } catch (e) {
+      // Auto-fallback: if Elite Server 3 fails or times out, seamlessly fall back to Server 1
+      if (_activeServer == 3) {
+        _activeServer = 1;
+        _showRipple("⚡ Switching to Server 1 (Cloud)", true);
+        final fallbackUrl = _getStreamUrlForCurrentServer();
+        return _initializePlayer(fallbackUrl, startPosition: startPosition);
+      }
+
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = "Playback Error: Unable to stream from server ($e).";
+          _errorMessage = "Playback Error: Unable to stream ($e). Try switching servers.";
         });
       }
     }
