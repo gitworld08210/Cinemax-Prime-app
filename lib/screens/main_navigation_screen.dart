@@ -6,6 +6,7 @@ import 'browse_screen.dart';
 import 'request_screen.dart';
 import 'series_screen.dart';
 import 'live_sports_screen.dart';
+import 'adult_screen.dart';
 
 const Color kAccent = Color(0xFFE11D48);
 
@@ -68,6 +69,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       RequestScreen(existingMovies: _allMovies),
       SeriesScreen(movies: _allMovies),
       LiveSportsScreen(movies: _allMovies),
+      AdultScreen(movies: _allMovies),
     ];
 
     return Scaffold(
@@ -124,6 +126,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             const BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_rounded),
               label: 'Live',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 5 ? kAccent : const Color(0x33E11D48),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: _currentIndex == 5 ? kAccent : Colors.white24, width: 0.5),
+                ),
+                child: const Text(
+                  "18+",
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white),
+                ),
+              ),
+              label: 'Vault',
             ),
           ],
         ),

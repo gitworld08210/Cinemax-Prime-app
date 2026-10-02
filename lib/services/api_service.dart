@@ -176,4 +176,37 @@ class ApiService {
 
     return {'success': false, 'message': 'Failed to submit request.'};
   }
+
+  /// Fetch the 18+ Vault PIN (Synced from Telegram Bot)
+  static Future<String> fetchAdultPin() async {
+    // 1. Try Render stream server /api/pin
+    try {
+      final res = await http.get(Uri.parse('https://ott-script-1.onrender.com/api/pin')).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = json.decode(utf8.decode(res.bodyBytes));
+        final pin = data['pin']?.toString().trim();
+        if (pin != null && pin.isNotEmpty) return pin;
+      }
+    } catch (_) {}
+
+    // 2. Try Supabase config row
+    try {
+      final res = await http.get(
+        Uri.parse('https://nbnardbqkjouakkikxmr.supabase.co/rest/v1/movies?id=eq.app-pin-18&select=*'),
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer $supabaseKey',
+        },
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final List list = json.decode(utf8.decode(res.bodyBytes));
+        if (list.isNotEmpty) {
+          final pin = list[0]['title']?.toString().trim();
+          if (pin != null && pin.isNotEmpty) return pin;
+        }
+      }
+    } catch (_) {}
+
+    return '1818'; // Default fallback PIN
+  }
 }

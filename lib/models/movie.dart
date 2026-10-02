@@ -38,6 +38,7 @@ class Movie {
   final List<AudioTrackInfo> audioTracks;
   final bool isFeatured;
   final bool isTrending;
+  final String badge;
 
   Movie({
     required this.id,
@@ -56,6 +57,7 @@ class Movie {
     required this.audioTracks,
     this.isFeatured = false,
     this.isTrending = false,
+    this.badge = '',
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -90,6 +92,7 @@ class Movie {
       audioTracks: tracks,
       isFeatured: json['is_featured'] ?? false,
       isTrending: json['is_trending'] ?? false,
+      badge: json['badge']?.toString() ?? '',
     );
   }
 }
