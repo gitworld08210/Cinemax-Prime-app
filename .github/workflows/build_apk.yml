@@ -25,13 +25,22 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
 
       - name: Generate Official Android Project
         run: |
           flutter create . --platforms=android --org com.cinemax --project-name cinemax_prime
+          
+          # Fix Kotlin Gradle Plugin version required by modern plugins
+          if [ -f android/settings.gradle ]; then
+            sed -i -E 's/id "org.jetbrains.kotlin.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "2.0.21"/' android/settings.gradle
+          fi
+          if [ -f android/build.gradle ]; then
+            sed -i -E 's/ext.kotlin_version = "[^"]+"/ext.kotlin_version = "2.0.21"/' android/build.gradle || true
+            sed -i -E "s/ext.kotlin_version = '[^']+'/ext.kotlin_version = '2.0.21'/" android/build.gradle || true
+          fi
+          
           # Add Internet permissions to AndroidManifest.xml
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>' android/app/src/main/AndroidManifest.xml
 
