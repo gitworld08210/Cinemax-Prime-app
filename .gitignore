@@ -1,0 +1,25 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/release/
+android/app/profile/
+**/GeneratedPluginRegistrant.*
+
+# iOS
+ios/Pods/
+ios/.symlinks/
