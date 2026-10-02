@@ -23,9 +23,17 @@ class _SeriesScreenState extends State<SeriesScreen> {
   String selectedFilter = 'all';
 
   List<Movie> get seriesList {
-    final allSeries = widget.movies.where((m) =>
-      !m.isAdult && (m.type == 'series' || m.genre.any((g) => g.toLowerCase().contains('web series') || g.toLowerCase().contains('series')))
-    ).toList();
+    final Map<String, Movie> uniqueSeries = {};
+    for (var m in widget.movies) {
+      if (m.isAdult) continue;
+      final isSer = m.type == 'series' || m.genre.any((g) => g.toLowerCase().contains('web series') || g.toLowerCase().contains('series'));
+      if (!isSer) continue;
+      final key = m.title.replaceAll(RegExp(r'\s*\(?\d{4}\)?.*'), '').trim().toLowerCase();
+      if (!uniqueSeries.containsKey(key)) {
+        uniqueSeries[key] = m;
+      }
+    }
+    final allSeries = uniqueSeries.values.toList();
 
     switch (selectedFilter) {
       case 'hindi':

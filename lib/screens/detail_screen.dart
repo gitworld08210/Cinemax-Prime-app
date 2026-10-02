@@ -40,12 +40,52 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _loadEpisodes() async {
     setState(() => _loadingEpisodes = true);
-    final eps = await ApiService.fetchTvEpisodes(widget.movie.title);
-    if (mounted) {
-      setState(() {
-        _episodes = eps;
-        _loadingEpisodes = false;
-      });
+    try {
+      final allMovies = await ApiService.fetchMovies();
+      final cleanTitle = widget.movie.title
+          .replaceAll(RegExp(r'\s*\(?\d{4}\)?.*'), '')
+          .replaceAll(RegExp(r'(?i)season\s*\d+'), '')
+          .trim().toLowerCase();
+
+      final matchingEpisodes = allMovies.where((m) {
+        final t = m.title.toLowerCase();
+        return t.contains(cleanTitle) && m.videoUrl.isNotEmpty;
+      }).toList();
+
+      final tmdbEps = await ApiService.fetchTvEpisodes(widget.movie.title);
+      List<Map<String, dynamic>> combined = [];
+
+      if (matchingEpisodes.length > 1) {
+        for (int i = 0; i < matchingEpisodes.length; i++) {
+          final m = matchingEpisodes[i];
+          final tmdbInfo = i < tmdbEps.length ? tmdbEps[i] : null;
+          combined.add({
+            'episode_number': i + 1,
+            'name': tmdbInfo?['name'] ?? 'Episode ${i + 1}',
+            'overview': tmdbInfo?['overview'] ?? m.synopsis,
+            'still': (tmdbInfo?['still'] != null && tmdbInfo!['still'].toString().isNotEmpty)
+                ? tmdbInfo['still']
+                : m.backdrop,
+            'runtime': tmdbInfo?['runtime'] ?? '45m',
+            'video_url': m.videoUrl,
+          });
+        }
+      } else {
+        for (int i = 0; i < tmdbEps.length; i++) {
+          final ep = Map<String, dynamic>.from(tmdbEps[i]);
+          ep['video_url'] = widget.movie.videoUrl;
+          combined.add(ep);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _episodes = combined;
+          _loadingEpisodes = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingEpisodes = false);
     }
   }
 
@@ -220,11 +260,36 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void _playEpisode(Map<String, dynamic> ep) {
-    // Play selected episode
+    final epNum = ep['episode_number'] ?? 1;
+    final epTitle = "${widget.movie.title} • Ep $epNum: ${ep['name'] ?? ''}";
+    final epVideoUrl = (ep['video_url'] != null && ep['video_url'].toString().isNotEmpty)
+        ? ep['video_url'].toString()
+        : widget.movie.videoUrl;
+
+    final epMovie = Movie(
+      id: "${widget.movie.id}-ep-$epNum",
+      title: epTitle,
+      type: 'series',
+      year: widget.movie.year,
+      duration: ep['runtime']?.toString() ?? widget.movie.duration,
+      quality: widget.movie.quality,
+      rating: widget.movie.rating,
+      poster: (ep['still'] != null && ep['still'].toString().isNotEmpty) ? ep['still'].toString() : widget.movie.poster,
+      backdrop: widget.movie.backdrop,
+      videoUrl: epVideoUrl,
+      downloadUrl: epVideoUrl,
+      synopsis: (ep['overview'] != null && ep['overview'].toString().isNotEmpty) ? ep['overview'].toString() : widget.movie.synopsis,
+      genre: widget.movie.genre,
+      audioTracks: widget.movie.audioTracks,
+      isFeatured: widget.movie.isFeatured,
+      isTrending: widget.movie.isTrending,
+      badge: "EP $epNum",
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PremiumPlayerScreen(movie: widget.movie),
+        builder: (_) => PremiumPlayerScreen(movie: epMovie),
       ),
     );
   }
@@ -323,39 +388,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // ── Server Status Badge ──
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.greenAccent.withOpacity(0.35), width: 1),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.bolt, color: Colors.greenAccent, size: 18),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            "Elite Server 3 (Azure Turbo 60FPS Active)",
-                            style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade900,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text("AUTO", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
 
                   // ── Play Button (big, full width) ──
                   SizedBox(

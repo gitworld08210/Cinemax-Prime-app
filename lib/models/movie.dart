@@ -33,7 +33,6 @@ class Movie {
   final String backdrop;
   final String videoUrl;
   final String downloadUrl;
-  final String eliteServer3Url;
   final String synopsis;
   final List<String> genre;
   final List<AudioTrackInfo> audioTracks;
@@ -53,7 +52,6 @@ class Movie {
     required this.backdrop,
     required this.videoUrl,
     required this.downloadUrl,
-    this.eliteServer3Url = '',
     required this.synopsis,
     required this.genre,
     required this.audioTracks,
@@ -62,13 +60,6 @@ class Movie {
     this.badge = '',
   });
 
-  String getStreamUrlForServer(int serverNum) {
-    if (serverNum == 3 && eliteServer3Url.isNotEmpty) {
-      return eliteServer3Url;
-    }
-    return videoUrl; // Default: Server 1 (Pehle wala Render cloud)
-  }
-
   factory Movie.fromJson(Map<String, dynamic> json) {
     List<String> parsedGenre = [];
     if (json['genre'] is List) {
@@ -76,9 +67,6 @@ class Movie {
     } else if (json['genre'] is String) {
       parsedGenre = [json['genre']];
     }
-
-    const String kFastStreamHost = 'https://expression-generated-permits-nor.trycloudflare.com';
-    const String kRenderHost = 'https://ott-script-1.onrender.com';
 
     List<AudioTrackInfo> tracks = [];
     if (json['audio_tracks'] is List) {
@@ -89,12 +77,6 @@ class Movie {
 
     final originalVideoUrl = json['video_url'] ?? '';
     final originalDownloadUrl = json['download_url'] ?? originalVideoUrl;
-
-    // Elite Server 3 (Azure Cloudflare High-Speed Engine)
-    String azureServer3Url = originalVideoUrl;
-    if (azureServer3Url.contains(kRenderHost)) {
-      azureServer3Url = azureServer3Url.replaceAll(kRenderHost, kFastStreamHost);
-    }
 
     return Movie(
       id: json['id']?.toString() ?? '',
