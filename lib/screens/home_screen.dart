@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../services/api_service.dart';
 import 'detail_screen.dart';
+import 'main_navigation_screen.dart';
 
 const Color kAccent = Color(0xFFE11D48);
 const Color kCanvas = Colors.black;
@@ -12,34 +13,35 @@ const Color kSurface3 = Color(0xFF1F1F1F);
 const Color kInkMuted = Color(0xFF8A8F98);
 const Color kRating = Color(0xFFF5C518);
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    return const MainNavigationScreen();
+  }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<Movie> allMovies = [];
-  bool isLoading = true;
+class HomeScreenContent extends StatefulWidget {
+  final List<Movie> movies;
+  final Future<void> Function() onRefresh;
+
+  const HomeScreenContent({
+    Key? key,
+    required this.movies,
+    required this.onRefresh,
+  }) : super(key: key);
+
+  @override
+  State<HomeScreenContent> createState() => _HomeScreenContentState();
+}
+
+class _HomeScreenContentState extends State<HomeScreenContent> {
   String activeFilter = 'all';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadMovies();
-  }
-
-  Future<void> _loadMovies({bool forceRefresh = false}) async {
-    setState(() => isLoading = true);
-    final movies = await ApiService.fetchMovies(forceRefresh: forceRefresh);
-    setState(() {
-      allMovies = movies;
-      isLoading = false;
-    });
-  }
+  List<Movie> get allMovies => widget.movies;
 
   // Filters matching exact website categories
   List<Movie> _filterByCategory(String cat) {
@@ -88,11 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kCanvas,
-      body: isLoading
+      body: allMovies.isEmpty
           ? const Center(child: CircularProgressIndicator(color: kAccent))
           : RefreshIndicator(
               color: kAccent,
-              onRefresh: () => _loadMovies(forceRefresh: true),
+              onRefresh: widget.onRefresh,
               child: CustomScrollView(
                 slivers: [
                   // ── Navbar ──
