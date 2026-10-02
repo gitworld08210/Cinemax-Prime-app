@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import '../models/movie.dart';
+
+const Color kAccent = Color(0xFFE11D48);
 
 class PremiumPlayerScreen extends StatefulWidget {
   final Movie movie;
@@ -14,11 +16,11 @@ class PremiumPlayerScreen extends StatefulWidget {
 }
 
 class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
-  late final Player player;
-  late final VideoController controller;
-  bool isLocked = false;
-  bool showControls = true;
-  String currentAudioLabel = "Default (Hindi/Main)";
+  VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
+  bool _isLoading = true;
+  String? _errorMessage;
+  String currentAudioLabel = "Default Audio";
 
   @override
   void initState() {
@@ -29,33 +31,75 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    player = Player();
-    controller = VideoController(player);
-
-    String streamSource = widget.movie.videoUrl;
+    String streamUrl = widget.movie.videoUrl;
     if (widget.movie.audioTracks.isNotEmpty) {
       final defaultTrack = widget.movie.audioTracks.firstWhere(
         (t) => t.isDefault,
         orElse: () => widget.movie.audioTracks.first,
       );
-      streamSource = defaultTrack.videoUrl.isNotEmpty ? defaultTrack.videoUrl : streamSource;
+      streamUrl = defaultTrack.videoUrl.isNotEmpty ? defaultTrack.videoUrl : streamUrl;
       currentAudioLabel = defaultTrack.label;
     }
 
-    player.open(Media(streamSource));
+    _initializePlayer(streamUrl);
   }
 
-  @override
-  void dispose() {
-    player.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    super.dispose();
+  Future<void> _initializePlayer(String url, {Duration? startPosition}) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final oldVideo = _videoPlayerController;
+      final oldChewie = _chewieController;
+
+      _videoPlayerController = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        httpHeaders: {'User-Agent': 'CinemaxPrimePlayer/1.0'},
+      );
+
+      await _videoPlayerController!.initialize();
+
+      if (startPosition != null) {
+        await _videoPlayerController!.seekTo(startPosition);
+      }
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        fullScreenByDefault: true,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: kAccent,
+          handleColor: kAccent,
+          backgroundColor: Colors.white24,
+          bufferedColor: Colors.white38,
+        ),
+      );
+
+      oldChewie?.dispose();
+      oldVideo?.dispose();
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Playback Error: Unable to stream from server.";
+      });
+    }
+  }
+
+  void _switchAudio(AudioTrackInfo track) async {
+    if (track.label == currentAudioLabel || track.videoUrl.isEmpty) return;
+    final currentPos = _videoPlayerController?.value.position ?? Duration.zero;
+    setState(() {
+      currentAudioLabel = track.label;
+    });
+    await _initializePlayer(track.videoUrl, startPosition: currentPos);
   }
 
   void _showAudioTrackSelector() {
@@ -66,8 +110,6 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        final internalTracks = player.state.tracks.audio;
-
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -76,7 +118,7 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.audiotrack, color: Color(0xFFE11D48)),
+                  Icon(Icons.audiotrack, color: kAccent),
                   SizedBox(width: 10),
                   Text(
                     "Select Audio Track",
@@ -85,52 +127,25 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
                 ],
               ),
               const SizedBox(height: 15),
-              if (internalTracks.isNotEmpty) ...[
-                const Text("Hardware MKV Audio Streams:", style: TextStyle(color: Colors.white60, fontSize: 13)),
-                ...internalTracks.map((t) {
-                  final isCurrent = player.state.track.audio == t;
-                  final title = t.title ?? t.language ?? "Audio Stream ${t.id}";
-                  return ListTile(
-                    leading: Icon(
-                      isCurrent ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: isCurrent ? const Color(0xFFE11D48) : Colors.white38,
-                    ),
-                    title: Text(title, style: TextStyle(color: isCurrent ? Colors.white : Colors.white70)),
-                    onTap: () {
-                      player.setAudioTrack(t);
-                      setState(() {
-                        currentAudioLabel = title;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-              ] else if (widget.movie.audioTracks.isNotEmpty) ...[
-                const Text("Dual Audio Options:", style: TextStyle(color: Colors.white60, fontSize: 13)),
+              if (widget.movie.audioTracks.isNotEmpty) ...[
                 ...widget.movie.audioTracks.map((track) {
                   final isSelected = track.label == currentAudioLabel;
                   return ListTile(
                     leading: Icon(
                       isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: isSelected ? const Color(0xFFE11D48) : Colors.white38,
+                      color: isSelected ? kAccent : Colors.white38,
                     ),
                     title: Text(track.label, style: TextStyle(color: isSelected ? Colors.white : Colors.white70)),
                     onTap: () {
-                      setState(() {
-                        currentAudioLabel = track.label;
-                      });
-                      final pos = player.state.position;
-                      player.open(Media(track.videoUrl)).then((_) {
-                        player.seek(pos);
-                      });
                       Navigator.pop(ctx);
+                      _switchAudio(track);
                     },
                   );
                 }),
               ] else ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text("Single Master Audio Track active.", style: TextStyle(color: Colors.white70)),
+                  child: Text("Single Master Audio Track active (Original Dub).", style: TextStyle(color: Colors.white70)),
                 )
               ],
             ],
@@ -141,56 +156,96 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> {
   }
 
   @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoPlayerController?.dispose();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Center(
-            child: Video(
-              controller: controller,
-              controls: MaterialVideoControls,
+          if (_isLoading)
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: kAccent),
+                  SizedBox(height: 16),
+                  Text("Buffering Cinemax Stream...", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            )
+          else if (_errorMessage != null)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, color: kAccent, size: 48),
+                  const SizedBox(height: 12),
+                  Text(_errorMessage!, style: const TextStyle(color: Colors.white, fontSize: 15)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: kAccent),
+                    onPressed: () => _initializePlayer(widget.movie.videoUrl),
+                    child: const Text("Retry", style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            )
+          else if (_chewieController != null)
+            Center(
+              child: Chewie(controller: _chewieController!),
             ),
-          ),
+
+          // Top Header Overlay
           Positioned(
-            top: 20,
-            left: 20,
+            top: 15,
+            left: 15,
+            right: 15,
             child: SafeArea(
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                    icon: const CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    widget.movie.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 20,
-            right: 20,
-            child: SafeArea(
-              child: Row(
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xCC1A1A1A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  Expanded(
+                    child: Text(
+                      widget.movie.title,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    icon: const Icon(Icons.language, size: 18, color: Color(0xFFE50914)),
-                    label: Text(
-                      currentAudioLabel,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    onPressed: _showAudioTrackSelector,
                   ),
+                  if (widget.movie.audioTracks.isNotEmpty)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xCC1A1A1A),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      ),
+                      icon: const Icon(Icons.language, size: 16, color: kAccent),
+                      label: Text(
+                        currentAudioLabel,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: _showAudioTrackSelector,
+                    ),
                 ],
               ),
             ),

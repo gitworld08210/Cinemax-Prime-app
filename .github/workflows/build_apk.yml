@@ -29,33 +29,9 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate and Patch Android Project
+      - name: Generate Official Android Project
         run: |
           flutter create . --platforms=android --org com.cinemax --project-name cinemax_prime
-          
-          # Fix compileSdk and minSdk in android/app/build.gradle
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/g' android/app/build.gradle || true
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle || true
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle || true
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
-          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/g' android/app/build.gradle || true
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle || true
-
-          # Patch root android/build.gradle to force compileSdkVersion 35 for all plugins (package_info_plus, etc.)
-          cat << 'EOF' >> android/build.gradle
-
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          compileSdkVersion 35
-                          buildToolsVersion "35.0.0"
-                      }
-                  }
-              }
-          }
-          EOF
-
           # Add Internet permissions to AndroidManifest.xml
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>' android/app/src/main/AndroidManifest.xml
 
@@ -77,10 +53,11 @@ jobs:
           tag_name: v1.0.${{ github.run_number }}
           name: "Cinemax Prime v1.0.${{ github.run_number }}"
           body: |
-            🎬 **Cinemax Prime APK - Auto Build**
-            - Native Dual-Audio Player (Hindi/English MKV Track Switching)
+            🎬 **Cinemax Prime APK - Official Release**
+            - Powered by Google Android ExoPlayer
+            - Dual-Audio & Multi-language stream switching
             - Exact Cinemax Prime Website Dark UI
-            - Ultra Fast Cloud Streaming
+            - High-Speed Cloud CDN streaming
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
