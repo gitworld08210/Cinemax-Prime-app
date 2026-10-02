@@ -33,6 +33,7 @@ class Movie {
   final String backdrop;
   final String videoUrl;
   final String downloadUrl;
+  final String eliteServer3Url;
   final String synopsis;
   final List<String> genre;
   final List<AudioTrackInfo> audioTracks;
@@ -52,6 +53,7 @@ class Movie {
     required this.backdrop,
     required this.videoUrl,
     required this.downloadUrl,
+    this.eliteServer3Url = '',
     required this.synopsis,
     required this.genre,
     required this.audioTracks,
@@ -59,6 +61,13 @@ class Movie {
     this.isTrending = false,
     this.badge = '',
   });
+
+  String getStreamUrlForServer(int serverNum) {
+    if (serverNum == 3 && eliteServer3Url.isNotEmpty) {
+      return eliteServer3Url;
+    }
+    return videoUrl; // Default: Server 1 (Pehle wala Render cloud)
+  }
 
   factory Movie.fromJson(Map<String, dynamic> json) {
     List<String> parsedGenre = [];
@@ -73,28 +82,18 @@ class Movie {
 
     List<AudioTrackInfo> tracks = [];
     if (json['audio_tracks'] is List) {
-      tracks = (json['audio_tracks'] as List).map((t) {
-        final track = AudioTrackInfo.fromJson(t);
-        String trackUrl = track.videoUrl;
-        if (trackUrl.startsWith(kRenderHost)) {
-          trackUrl = trackUrl.replaceFirst(kRenderHost, kFastStreamHost);
-        }
-        return AudioTrackInfo(
-          lang: track.lang,
-          label: track.label,
-          videoUrl: trackUrl,
-          isDefault: track.isDefault,
-        );
-      }).toList();
+      tracks = (json['audio_tracks'] as List)
+          .map((t) => AudioTrackInfo.fromJson(t))
+          .toList();
     }
 
-    String vUrl = json['video_url'] ?? '';
-    String dUrl = json['download_url'] ?? vUrl;
-    if (vUrl.startsWith(kRenderHost)) {
-      vUrl = vUrl.replaceFirst(kRenderHost, kFastStreamHost);
-    }
-    if (dUrl.startsWith(kRenderHost)) {
-      dUrl = dUrl.replaceFirst(kRenderHost, kFastStreamHost);
+    final originalVideoUrl = json['video_url'] ?? '';
+    final originalDownloadUrl = json['download_url'] ?? originalVideoUrl;
+
+    // Elite Server 3 (Azure Cloudflare High-Speed Engine)
+    String azureServer3Url = originalVideoUrl;
+    if (azureServer3Url.contains(kRenderHost)) {
+      azureServer3Url = azureServer3Url.replaceAll(kRenderHost, kFastStreamHost);
     }
 
     return Movie(
@@ -107,8 +106,9 @@ class Movie {
       rating: (json['rating'] is num) ? (json['rating'] as num).toDouble() : 8.0,
       poster: json['poster'] ?? 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
       backdrop: json['backdrop'] ?? json['poster'] ?? 'https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=1600',
-      videoUrl: vUrl,
-      downloadUrl: dUrl,
+      videoUrl: originalVideoUrl,
+      downloadUrl: originalDownloadUrl,
+      eliteServer3Url: azureServer3Url,
       synopsis: json['synopsis'] ?? 'Watch in crisp Full HD on Cinemax Prime.',
       genre: parsedGenre.isNotEmpty ? parsedGenre : ['Action', 'Drama'],
       audioTracks: tracks,

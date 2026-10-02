@@ -55,17 +55,34 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    String streamUrl = widget.movie.videoUrl;
+    String streamUrl = _getStreamUrlForCurrentServer();
     if (widget.movie.audioTracks.isNotEmpty) {
       final defaultTrack = widget.movie.audioTracks.firstWhere(
         (t) => t.isDefault,
         orElse: () => widget.movie.audioTracks.first,
       );
-      streamUrl = defaultTrack.videoUrl.isNotEmpty ? defaultTrack.videoUrl : streamUrl;
       currentAudioLabel = defaultTrack.label;
     }
 
     _initializePlayer(streamUrl);
+  }
+
+  String _getStreamUrlForCurrentServer() {
+    String base = widget.movie.getStreamUrlForServer(_activeServer);
+    if (widget.movie.audioTracks.isNotEmpty) {
+      final defaultTrack = widget.movie.audioTracks.firstWhere(
+        (t) => t.isDefault,
+        orElse: () => widget.movie.audioTracks.first,
+      );
+      String trackUrl = defaultTrack.videoUrl.isNotEmpty ? defaultTrack.videoUrl : base;
+      const String kRenderHost = 'https://ott-script-1.onrender.com';
+      const String kFastStreamHost = 'https://expression-generated-permits-nor.trycloudflare.com';
+      if (_activeServer == 3 && trackUrl.contains(kRenderHost)) {
+        trackUrl = trackUrl.replaceAll(kRenderHost, kFastStreamHost);
+      }
+      return trackUrl;
+    }
+    return base;
   }
 
   @override
@@ -264,6 +281,92 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
         );
       },
     );
+  }
+
+  void _showServerSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.dns, color: kAccent),
+                  SizedBox(width: 10),
+                  Text(
+                    "Streaming Server Source",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Switch servers if experiencing buffering or slowdowns.",
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+              const SizedBox(height: 15),
+              ListTile(
+                leading: Icon(
+                  _activeServer == 1 ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: _activeServer == 1 ? kAccent : Colors.white38,
+                ),
+                title: const Text("Server 1 (Default Cloud)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: const Text("Standard Cloud Network • Global Stable Stream", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _switchServer(1);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _activeServer == 3 ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: _activeServer == 3 ? Colors.greenAccent : Colors.white38,
+                ),
+                title: Row(
+                  children: [
+                    const Text("Elite Server 3", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade900,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.greenAccent, width: 0.8),
+                      ),
+                      child: const Text("TURBO TEST", style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                subtitle: const Text("Azure High-Speed Datacenter • Zero Lag Instant Seeking", style: TextStyle(color: Colors.greenAccent, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _switchServer(3);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _switchServer(int newServer) {
+    if (_activeServer == newServer) return;
+    final currentPos = _controller?.value.position ?? Duration.zero;
+    setState(() {
+      _activeServer = newServer;
+    });
+    _showRipple(newServer == 3 ? "⚡ Switched to Elite Server 3" : "Switched to Server 1", true);
+    final newUrl = _getStreamUrlForCurrentServer();
+    _initializePlayer(newUrl, startPosition: currentPos);
   }
 
   void _showSpeedSelector() {
@@ -661,6 +764,35 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
                               ],
                             ),
                           ),
+                          // Server Selector Button (Server 1 vs Elite Server 3)
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              backgroundColor: _activeServer == 3 ? Colors.green.shade900.withOpacity(0.6) : Colors.white10,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                side: BorderSide(
+                                  color: _activeServer == 3 ? Colors.greenAccent : Colors.white24,
+                                  width: 0.8,
+                                ),
+                              ),
+                            ),
+                            icon: Icon(
+                              Icons.dns,
+                              color: _activeServer == 3 ? Colors.greenAccent : Colors.white70,
+                              size: 16,
+                            ),
+                            label: Text(
+                              _activeServer == 3 ? "Elite 3 (⚡)" : "Server 1",
+                              style: TextStyle(
+                                color: _activeServer == 3 ? Colors.greenAccent : Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onPressed: _showServerSelector,
+                          ),
+                          const SizedBox(width: 4),
                           // Aspect Ratio Button
                           IconButton(
                             icon: const Icon(Icons.aspect_ratio, color: Colors.white70, size: 20),
