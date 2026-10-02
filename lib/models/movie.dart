@@ -68,11 +68,33 @@ class Movie {
       parsedGenre = [json['genre']];
     }
 
+    const String kFastStreamHost = 'https://expression-generated-permits-nor.trycloudflare.com';
+    const String kRenderHost = 'https://ott-script-1.onrender.com';
+
     List<AudioTrackInfo> tracks = [];
     if (json['audio_tracks'] is List) {
-      tracks = (json['audio_tracks'] as List)
-          .map((t) => AudioTrackInfo.fromJson(t))
-          .toList();
+      tracks = (json['audio_tracks'] as List).map((t) {
+        final track = AudioTrackInfo.fromJson(t);
+        String trackUrl = track.videoUrl;
+        if (trackUrl.startsWith(kRenderHost)) {
+          trackUrl = trackUrl.replaceFirst(kRenderHost, kFastStreamHost);
+        }
+        return AudioTrackInfo(
+          lang: track.lang,
+          label: track.label,
+          videoUrl: trackUrl,
+          isDefault: track.isDefault,
+        );
+      }).toList();
+    }
+
+    String vUrl = json['video_url'] ?? '';
+    String dUrl = json['download_url'] ?? vUrl;
+    if (vUrl.startsWith(kRenderHost)) {
+      vUrl = vUrl.replaceFirst(kRenderHost, kFastStreamHost);
+    }
+    if (dUrl.startsWith(kRenderHost)) {
+      dUrl = dUrl.replaceFirst(kRenderHost, kFastStreamHost);
     }
 
     return Movie(
@@ -85,8 +107,8 @@ class Movie {
       rating: (json['rating'] is num) ? (json['rating'] as num).toDouble() : 8.0,
       poster: json['poster'] ?? 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
       backdrop: json['backdrop'] ?? json['poster'] ?? 'https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=1600',
-      videoUrl: json['video_url'] ?? '',
-      downloadUrl: json['download_url'] ?? json['video_url'] ?? '',
+      videoUrl: vUrl,
+      downloadUrl: dUrl,
       synopsis: json['synopsis'] ?? 'Watch in crisp Full HD on Cinemax Prime.',
       genre: parsedGenre.isNotEmpty ? parsedGenre : ['Action', 'Drama'],
       audioTracks: tracks,
