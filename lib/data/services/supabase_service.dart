@@ -81,13 +81,59 @@ class SupabaseService {
     return [];
   }
 
-  /// Submit user request
+  /// Submit user request (Dispatches to Render Cloud, Telegram Channel & Supabase)
   Future<bool> submitTitleRequest(String title, String type) async {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) return false;
+
+    bool anySuccess = false;
+
+    // 1. Direct Dispatch to Render Streaming Engine API
+    try {
+      final renderUri = Uri.parse('https://ott-script-1.onrender.com/api/request');
+      final renderRes = await http.post(
+        renderUri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'title': cleanTitle,
+          'type': type,
+          'year': DateTime.now().year,
+        }),
+      ).timeout(const Duration(seconds: 8));
+      if (renderRes.statusCode >= 200 && renderRes.statusCode < 300) {
+        anySuccess = true;
+      }
+    } catch (_) {}
+
+    // 2. Direct Telegram Notification Dispatch
+    try {
+      const botToken = '8951731294:AAHN5rB2a7xIff0Z1LbLm9YX2bztlbnU958';
+      const channelId = '-1004369294454';
+      final tgUri = Uri.parse('https://api.telegram.org/bot$botToken/sendMessage');
+      final tgText = '🔔 *New Priority Content Request (From App)!*\n'
+          '🎬 *Title*: $cleanTitle\n'
+          '📁 *Type*: ${type.toUpperCase()}\n'
+          '⚡ *Status*: Queued for Cloud Pipe & Streaming';
+      final tgRes = await http.post(
+        tgUri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'chat_id': channelId,
+          'text': tgText,
+          'parse_mode': 'Markdown',
+        }),
+      ).timeout(const Duration(seconds: 8));
+      if (tgRes.statusCode == 200) {
+        anySuccess = true;
+      }
+    } catch (_) {}
+
+    // 3. Supabase Record Insertion
     try {
       final reqId = 'req-${DateTime.now().millisecondsSinceEpoch % 100000}';
       final payload = {
         'id': reqId,
-        'title': title.trim(),
+        'title': cleanTitle,
         'type': type,
         'quality': 'PRIORITY_REQUEST',
         'badge': 'priority_request',
@@ -97,8 +143,8 @@ class SupabaseService {
         'year': DateTime.now().year,
         'genre': [type == 'series' ? 'Web Series' : 'Bollywood', 'Requested'],
         'synopsis': 'High-priority title requested in 1080p Ultra HD.',
-        'poster': 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=780&auto=format&fit=crop',
-        'backdrop': 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1280&auto=format&fit=crop',
+        'poster': 'https://image.tmdb.org/t/p/w780/lIBjLUAAw2bzeOHBJIKiZI4QDL0.jpg',
+        'backdrop': 'https://image.tmdb.org/t/p/w1280/lIBjLUAAw2bzeOHBJIKiZI4QDL0.jpg',
         'video_url': 'https://autoembed.co/movie/tmdb/popular',
         'download_url': '',
       };
@@ -108,10 +154,12 @@ class SupabaseService {
         uri,
         headers: _headers,
         body: jsonEncode(payload),
-      );
-      return res.statusCode >= 200 && res.statusCode < 300;
-    } catch (_) {
-      return false;
-    }
+      ).timeout(const Duration(seconds: 6));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        anySuccess = true;
+      }
+    } catch (_) {}
+
+    return anySuccess;
   }
 }
