@@ -342,59 +342,62 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                   ),
                   const SizedBox(height: 16),
                   // Action buttons
-                  Row(
-                    children: [
-                      // Play Movie
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        // Play Movie
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          icon: const Icon(Icons.play_arrow, size: 20),
+                          label: const Text('Play Movie', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => PremiumPlayerScreen(movie: movie)),
+                            );
+                          },
                         ),
-                        icon: const Icon(Icons.play_arrow, size: 22),
-                        label: const Text('Play Movie', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => PremiumPlayerScreen(movie: movie)),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      // Download
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white24),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        const SizedBox(width: 8),
+                        // Download
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          icon: const Icon(Icons.download, size: 16),
+                          label: const Text('Download', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          onPressed: () => _launchDownload(movie),
                         ),
-                        icon: const Icon(Icons.download, size: 18),
-                        label: const Text('Download', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        onPressed: () => _launchDownload(movie),
-                      ),
-                      const SizedBox(width: 10),
-                      // Browse All
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white24),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        const SizedBox(width: 8),
+                        // Browse All
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          icon: const Icon(Icons.info_outline, size: 16),
+                          label: const Text('Browse All', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BrowseScreen(movies: widget.movies),
+                              ),
+                            );
+                          },
                         ),
-                        icon: const Icon(Icons.info_outline, size: 18),
-                        label: const Text('Browse All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BrowseScreen(movies: widget.movies),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

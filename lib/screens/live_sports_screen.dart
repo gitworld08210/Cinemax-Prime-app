@@ -238,18 +238,38 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
     },
   ];
 
+  List<Map<String, String>> _parseServers(dynamic raw) {
+    if (raw is List) {
+      return raw.map((s) {
+        if (s is Map) {
+          return s.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+        }
+        return <String, String>{};
+      }).toList();
+    }
+    return [];
+  }
+
   void _openStream(Map<String, dynamic> item, Map<String, String> server) {
+    final title = item['title']?.toString() ?? 'Live Stream';
+    final serverName = server['name'] ?? 'Live Server';
+    final quality = server['quality'] ?? '1080p Live';
+    final speed = server['speed'] ?? 'High Speed';
+    final poster = item['poster']?.toString() ?? '';
+    final videoUrl = server['url'] ?? '';
+    final status = item['status']?.toString() ?? '';
+
     final liveMovie = Movie(
-      id: 'live-${item['title'].hashCode}-${server['name'].hashCode}',
-      title: '${item['title']} [${server['quality']}]',
-      synopsis: '${item['status']}\nServer: ${server['name']} (${server['speed']})',
-      poster: item['poster'] as String,
-      backdrop: item['poster'] as String,
-      videoUrl: server['url'] as String,
+      id: 'live-${title.hashCode}-${serverName.hashCode}',
+      title: '$title [$quality]',
+      synopsis: '$status\nServer: $serverName ($speed)',
+      poster: poster,
+      backdrop: poster,
+      videoUrl: videoUrl,
       downloadUrl: '',
       year: DateTime.now().year,
       duration: 'LIVE',
-      quality: server['quality'] ?? '1080p Live',
+      quality: quality,
       rating: 9.9,
       genre: ['Live Sports', 'Cricket', '4K HD'],
       type: 'live',
@@ -266,7 +286,8 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
   }
 
   void _showQualityModal(Map<String, dynamic> item) {
-    final servers = (item['servers'] as List).cast<Map<String, String>>();
+    final servers = _parseServers(item['servers']);
+    if (servers.isEmpty) return;
     if (servers.length == 1) {
       _openStream(item, servers.first);
       return;
@@ -469,7 +490,7 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
                 setState(() {
                   _liveItems.insert(0, customItem);
                 });
-                _openStream(customItem, (customItem['servers'] as List).first as Map<String, String>);
+                _openStream(customItem, _parseServers(customItem['servers']).first);
               }
             },
             child: const Text("Watch Now"),
@@ -544,7 +565,7 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
               itemBuilder: (context, index) {
                 final item = filtered[index];
                 final isFeatured = item['isFeatured'] == true;
-                final servers = (item['servers'] as List).cast<Map<String, String>>();
+                final servers = _parseServers(item['servers']);
 
                 return GestureDetector(
                   onTap: () => _showQualityModal(item),
