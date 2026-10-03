@@ -19,11 +19,23 @@ class SupabaseService {
       final res = await http.get(uri, headers: _headers);
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
-        return data.map((e) => Movie.fromJson(e)).toList();
+        if (data.isNotEmpty) {
+          return data.map((e) => Movie.fromJson(e)).toList();
+        }
       }
-    } catch (e) {
-      // Return empty list on failure, no crash
-    }
+    } catch (_) {}
+
+    // Fallback: Fetch directly from Render Cloud API
+    try {
+      final renderRes = await http.get(Uri.parse('https://ott-script-1.onrender.com/api/movies'));
+      if (renderRes.statusCode == 200) {
+        final json = jsonDecode(renderRes.body);
+        if (json['data'] is List && (json['data'] as List).isNotEmpty) {
+          return (json['data'] as List).map((e) => Movie.fromJson(e)).toList();
+        }
+      }
+    } catch (_) {}
+
     return [];
   }
 
@@ -34,9 +46,23 @@ class SupabaseService {
       final res = await http.get(uri, headers: _headers);
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
-        return data.map((e) => Movie.fromJson(e)).toList();
+        if (data.isNotEmpty) {
+          return data.map((e) => Movie.fromJson(e)).toList();
+        }
       }
     } catch (_) {}
+
+    // Fallback: Fetch directly from Render Cloud API
+    try {
+      final renderRes = await http.get(Uri.parse('https://ott-script-1.onrender.com/api/movies'));
+      if (renderRes.statusCode == 200) {
+        final json = jsonDecode(renderRes.body);
+        if (json['data'] is List && (json['data'] as List).isNotEmpty) {
+          return (json['data'] as List).map((e) => Movie.fromJson(e)).toList();
+        }
+      }
+    } catch (_) {}
+
     return [];
   }
 
