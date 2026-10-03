@@ -6,6 +6,7 @@ class ApiService {
   static const String catalogUrl = 'https://movie-bazar-iota.vercel.app/data/movies.json';
   static const String backupCatalogUrl = 'https://raw.githubusercontent.com/gitworld08210/Movie-bazar-/main/data/movies.json';
   static const String requestApiUrl = 'https://movie-bazar-iota.vercel.app/api/request';
+  static const String liveChannelsUrl = 'https://raw.githubusercontent.com/gitworld08210/Movie-bazar-/main/data/live_channels.json';
   static const String supabaseUrl = 'https://nbnardbqkjouakkikxmr.supabase.co/rest/v1/movies?select=*&order=created_at.desc';
   static const String supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ibmFyZGJxa2pvdWFra2lreG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1NzU4NzIsImV4cCI6MjEwNjE1MTg3Mn0.YLpsdock3gBniqdc52SFnD6BcHFYzBaRXAEwUqNWQP0';
   static const String tmdbApiKey = '15d2ea6d0dc1d476efbca3eba2b9bbfb';
@@ -56,6 +57,18 @@ class ApiService {
     } catch (_) {}
 
     return _cachedMovies ?? [];
+  }
+
+  /// Dynamically fetch live cricket matches and TV channels without app update
+  static Future<List<Map<String, dynamic>>> fetchLiveChannels() async {
+    try {
+      final response = await http.get(Uri.parse(liveChannelsUrl)).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final List<dynamic> list = json.decode(utf8.decode(response.bodyBytes));
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
   /// Search TMDB for live titles (Movies & TV Shows)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
+import '../services/api_service.dart';
 import 'player_screen.dart';
 
 const Color kAccent = Color(0xFFE11D48);
@@ -20,6 +21,24 @@ class LiveSportsScreen extends StatefulWidget {
 
 class _LiveSportsScreenState extends State<LiveSportsScreen> {
   String _selectedCategory = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveChannels();
+  }
+
+  Future<void> _loadLiveChannels() async {
+    final remote = await ApiService.fetchLiveChannels();
+    if (mounted && remote.isNotEmpty) {
+      setState(() {
+        final customStreams = _liveItems.where((i) => i['categoryLabel'] == 'CUSTOM STREAM').toList();
+        _liveItems.clear();
+        _liveItems.addAll(customStreams);
+        _liveItems.addAll(remote);
+      });
+    }
+  }
 
   // ── Channels & Matches Data ──
   final List<Map<String, dynamic>> _liveItems = [
@@ -515,7 +534,10 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
 
           // ── Stream Cards List ──
           Expanded(
-            child: ListView.separated(
+            child: RefreshIndicator(
+              color: kAccent,
+              onRefresh: _loadLiveChannels,
+              child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               itemCount: filtered.length,
               separatorBuilder: (_, __) => const SizedBox(height: 16),
@@ -677,7 +699,8 @@ class _LiveSportsScreenState extends State<LiveSportsScreen> {
               },
             ),
           ),
-        ],
+        ),
+      ],
       ),
     );
   }
