@@ -591,13 +591,15 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // 10s Rewind
-                        IconButton(
-                          iconSize: 46,
-                          icon: const Icon(Icons.replay_10_rounded, color: Colors.white),
-                          onPressed: () => _seekBy(-10),
-                        ),
-                        const SizedBox(width: 44),
+                        if (widget.movie.type != 'live') ...[
+                          // 10s Rewind
+                          IconButton(
+                            iconSize: 46,
+                            icon: const Icon(Icons.replay_10_rounded, color: Colors.white),
+                            onPressed: () => _seekBy(-10),
+                          ),
+                          const SizedBox(width: 44),
+                        ],
                         // Big Play / Pause
                         GestureDetector(
                           onTap: () {
@@ -623,13 +625,15 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
                             ),
                           ),
                         ),
-                        const SizedBox(width: 44),
-                        // 10s Forward
-                        IconButton(
-                          iconSize: 46,
-                          icon: const Icon(Icons.forward_10_rounded, color: Colors.white),
-                          onPressed: () => _seekBy(10),
-                        ),
+                        if (widget.movie.type != 'live') ...[
+                          const SizedBox(width: 44),
+                          // 10s Forward
+                          IconButton(
+                            iconSize: 46,
+                            icon: const Icon(Icons.forward_10_rounded, color: Colors.white),
+                            onPressed: () => _seekBy(10),
+                          ),
+                        ],
                       ],
                     ),
 
@@ -639,13 +643,53 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Scrubber & Times
-                          Row(
-                            children: [
-                              Text(
-                                _formatDuration(_isScrubbing ? Duration(milliseconds: _scrubValue.toInt()) : position),
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          if (widget.movie.type == 'live')
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "LIVE BROADCAST",
+                                    style: TextStyle(
+                                      color: Color(0xFFEF4444),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white12,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.white24, width: 0.5),
+                                    ),
+                                    child: Text(
+                                      widget.movie.quality,
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            )
+                          else
+                            // Scrubber & Times
+                            Row(
+                              children: [
+                                Text(
+                                  _formatDuration(_isScrubbing ? Duration(milliseconds: _scrubValue.toInt()) : position),
+                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
                               Expanded(
                                 child: SliderTheme(
                                   data: SliderTheme.of(context).copyWith(
