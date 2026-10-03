@@ -90,7 +90,6 @@ class Movie {
       backdrop: json['backdrop'] ?? json['poster'] ?? 'https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=1600',
       videoUrl: originalVideoUrl,
       downloadUrl: originalDownloadUrl,
-      eliteServer3Url: azureServer3Url,
       synopsis: json['synopsis'] ?? 'Watch in crisp Full HD on Cinemax Prime.',
       genre: parsedGenre.isNotEmpty ? parsedGenre : ['Action', 'Drama'],
       audioTracks: tracks,

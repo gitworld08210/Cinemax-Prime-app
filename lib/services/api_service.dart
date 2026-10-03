@@ -17,7 +17,25 @@ class ApiService {
       return _cachedMovies!;
     }
 
-    // 1. Try Vercel / GitHub movies.json first
+    // 1. Direct from Supabase Live Database First (instant real-time updates)
+    try {
+      final response = await http.get(
+        Uri.parse('$supabaseUrl&limit=1000'),
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer $supabaseKey',
+        },
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final List<dynamic> list = json.decode(utf8.decode(response.bodyBytes));
+        if (list.isNotEmpty) {
+          _cachedMovies = list.map((item) => Movie.fromJson(item)).toList();
+          return _cachedMovies!;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fallback to Vercel catalog cache
     try {
       final response = await http.get(Uri.parse(catalogUrl)).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
@@ -27,25 +45,9 @@ class ApiService {
       }
     } catch (_) {}
 
-    // 2. Fallback to GitHub raw
+    // 3. Fallback to GitHub raw
     try {
       final response = await http.get(Uri.parse(backupCatalogUrl)).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final List<dynamic> list = json.decode(utf8.decode(response.bodyBytes));
-        _cachedMovies = list.map((item) => Movie.fromJson(item)).toList();
-        return _cachedMovies!;
-      }
-    } catch (_) {}
-
-    // 3. Fallback to Supabase direct
-    try {
-      final response = await http.get(
-        Uri.parse(supabaseUrl),
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': 'Bearer $supabaseKey',
-        },
-      ).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final List<dynamic> list = json.decode(utf8.decode(response.bodyBytes));
         _cachedMovies = list.map((item) => Movie.fromJson(item)).toList();
