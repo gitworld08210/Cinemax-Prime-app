@@ -496,30 +496,44 @@ class _PremiumPlayerScreenState extends State<PremiumPlayerScreen> with TickerPr
               ),
             ),
 
-          // ── Screen Locked Pill (Bottom Center) ──
+          // ── Screen Lock Icon (Upper-Left Corner) ──
           if (_isLocked)
             Positioned(
-              bottom: 30,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87,
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white30),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              top: 20,
+              left: 20,
+              child: SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () {
+                      setState(() {
+                        _isLocked = false;
+                        _showControls = true;
+                      });
+                      _startHideTimer();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.65),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white30, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.lock,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
                   ),
-                  icon: const Icon(Icons.lock, color: kNetflixRed, size: 20),
-                  label: const Text("Screen Locked • Tap to Unlock", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  onPressed: () {
-                    setState(() {
-                      _isLocked = false;
-                      _showControls = true;
-                    });
-                    _startHideTimer();
-                  },
                 ),
               ),
             ),

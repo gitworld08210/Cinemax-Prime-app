@@ -522,7 +522,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
             ),
           ),
           SizedBox(
-            height: 210,
+            height: 236,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -550,6 +550,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
         width: 125,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -558,11 +559,11 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                   CachedNetworkImage(
                     imageUrl: movie.poster,
                     width: 125,
-                    height: 175,
+                    height: 170,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(width: 125, height: 175, color: kSurface2),
+                    placeholder: (_, __) => Container(width: 125, height: 170, color: kSurface2),
                     errorWidget: (_, __, ___) => Container(
-                      width: 125, height: 175, color: kSurface2,
+                      width: 125, height: 170, color: kSurface2,
                       child: const Icon(Icons.movie, color: Colors.white24, size: 40),
                     ),
                   ),
@@ -615,11 +616,14 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              movie.title,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            SizedBox(
+              height: 32,
+              child: Text(
+                movie.title,
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500, height: 1.2),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
