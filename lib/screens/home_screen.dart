@@ -185,22 +185,31 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                     toolbarHeight: 56,
                     title: Row(
                       children: [
+                        const Text(
+                          'CINEMAX',
+                          style: TextStyle(
+                            color: Color(0xFFE50914),
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: kAccent,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text('CINEMAX', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: kAccent.withOpacity(0.5)),
-                            borderRadius: BorderRadius.circular(4),
+                          child: const Text(
+                            'PRIME',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                            ),
                           ),
-                          child: const Text('PRIME', style: TextStyle(color: kAccent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1)),
                         ),
                       ],
                     ),
